@@ -137,6 +137,7 @@ map <unsigned, Blob> FindBlobs(const CImg<> &labeled_slice) {
       it->second.border_y.push_back(current_y);
       ++length;
       direction = dir;
+      it->second.contour.push_back(direction);
     } // while (true) 
   }
   return blobs;
