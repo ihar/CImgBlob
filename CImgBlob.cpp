@@ -32,6 +32,9 @@ struct Blob {
   vector<unsigned> x, y; 
   // x and y coordinates of the blob's border
   vector<unsigned> border_x, border_y;
+  // Neighbours counter. 
+  // -1 is for pixels out of the image
+  map<int, unsigned> neighbor;
 };
 
 //! Detection of regions (blobs) on an image and calculating blob's characteristics
@@ -48,8 +51,8 @@ map <unsigned, Blob> FindBlobs(const CImg<> &labeled_slice) {
     blobs[val].x.push_back(x);
     blobs[val].y.push_back(y);
   }
-  // m01 and m10 moments
   map<unsigned, Blob>::iterator it;
+  // Image moments
   for (it = blobs.begin(); it != blobs.end(); ++it) {
     vector<unsigned> coords = it->second.x;
     it->second.minx = *(std::min_element(coords.begin(), coords.end()));
@@ -62,7 +65,6 @@ map <unsigned, Blob> FindBlobs(const CImg<> &labeled_slice) {
     it->second.centroid.first = it->second.m10 / it->second.m00;
     it->second.centroid.second = it->second.m01 / it->second.m00;
   }
-
   // Border tracing, 4-connectivity
   /*
             1
@@ -84,8 +86,6 @@ map <unsigned, Blob> FindBlobs(const CImg<> &labeled_slice) {
 
     unsigned current_x = it->second.x[0],
              current_y = it->second.y[0];
-
-//cout << endl << "(" << current_x << ", " << current_y << ") ";
 
     it->second.border_x.push_back(current_x);
     it->second.border_y.push_back(current_y);
@@ -115,9 +115,10 @@ map <unsigned, Blob> FindBlobs(const CImg<> &labeled_slice) {
       unsigned dir = direction;
       int  new_x = current_x + direction_ways[dir][0],
            new_y = current_y + direction_ways[dir][1];
-      // Border neighbour's effect. If current pixel not in the image will not consider it
+      // Border neighbour's effect. If current pixel not in the image, will not consider it
       int curr_pos_value = ((0 > new_x) || (0 > new_y) || (im_w <= new_x) || (im_h <= new_y))? -1 : labeled_slice(new_x, new_y);
       while (curr_pos_value != it->first) {
+        it->second.neighbor[curr_pos_value]++;
         dir = (dir+1) % 4;
         new_x = current_x + direction_ways[dir][0];
         new_y = current_y + direction_ways[dir][1];
@@ -180,9 +181,8 @@ int main(int argc, char **argv) {
     cout << "Please define an image as command-line parameter.";
     return -1;
   }
-  CImg<> img_binary = img.get_threshold(1),
+  CImg<> img_binary = img.get_threshold(1), // Make binary image
          img_labeled =  img_binary.get_label(false); // 4-connectivity
-  (img_binary, img_labeled).display();
 
   long long curr_time;
   curr_time = GetTimeMs64();
@@ -202,5 +202,6 @@ int main(int argc, char **argv) {
     }
   }
   (img_binary, img_labeled, img_vis).display();
+
   return 0;
 }
